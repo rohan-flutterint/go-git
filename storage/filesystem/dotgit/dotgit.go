@@ -3,7 +3,6 @@ package dotgit
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -354,7 +353,7 @@ func (d *DotGit) ObjectsWithPrefix(prefix []byte) ([]plumbing.Hash, error) {
 	// Handle edge cases.
 	if len(prefix) < 1 {
 		return d.Objects()
-	} else if len(prefix) > len(plumbing.ZeroHash) {
+	} else if len(prefix) > plumbing.ZeroHash.Size() {
 		return nil, nil
 	}
 
@@ -368,13 +367,13 @@ func (d *DotGit) ObjectsWithPrefix(prefix []byte) ([]plumbing.Hash, error) {
 		// Figure out the half-open interval defined by the prefix.
 		first := sort.Search(len(d.objectList), func(i int) bool {
 			// Same as plumbing.HashSlice.Less.
-			return bytes.Compare(d.objectList[i][:], prefix) >= 0
+			return d.objectList[i].Compare(prefix) >= 0
 		})
 		lim := len(d.objectList)
 		if limPrefix, overflow := incBytes(prefix); !overflow {
 			lim = sort.Search(len(d.objectList), func(i int) bool {
 				// Same as plumbing.HashSlice.Less.
-				return bytes.Compare(d.objectList[i][:], limPrefix) >= 0
+				return d.objectList[i].Compare(limPrefix) >= 0
 			})
 		}
 		return d.objectList[first:lim], nil
@@ -385,7 +384,7 @@ func (d *DotGit) ObjectsWithPrefix(prefix []byte) ([]plumbing.Hash, error) {
 	var n int
 	err := d.ForEachObjectHash(func(hash plumbing.Hash) error {
 		n++
-		if bytes.HasPrefix(hash[:], prefix) {
+		if hash.HasPrefix(prefix) {
 			objects = append(objects, hash)
 		}
 		return nil

@@ -109,11 +109,17 @@ func (d *Decoder) readEntry(idx *Index) (*Entry, error) {
 		&e.UID,
 		&e.GID,
 		&e.Size,
-		&e.Hash,
-		&flags,
 	}
 
 	if err := binary.Read(d.r, flow...); err != nil {
+		return nil, err
+	}
+
+	var err error
+	if e.Hash, err = binary.ReadHash(d.r); err != nil {
+		return nil, err
+	}
+	if err := binary.Read(d.r, &flags); err != nil {
 		return nil, err
 	}
 
@@ -300,11 +306,11 @@ func (d *Decoder) getExtensionReader() (*bufio.Reader, error) {
 func (d *Decoder) readChecksum(expected []byte) error {
 	var h plumbing.Hash
 
-	if _, err := io.ReadFull(d.r, h[:]); err != nil {
+	if _, err := h.FromReader(d.r); err != nil {
 		return err
 	}
 
-	if !bytes.Equal(h[:], expected) {
+	if h.Compare(expected) != 0 {
 		return ErrInvalidChecksum
 	}
 
@@ -394,7 +400,7 @@ func (d *treeExtensionDecoder) readEntry() (*TreeEntry, error) {
 	}
 
 	e.Trees = i
-	_, err = io.ReadFull(d.r, e.Hash[:])
+	_, err = e.Hash.FromReader(d.r)
 	if err != nil {
 		return nil, err
 	}
@@ -440,7 +446,7 @@ func (d *resolveUndoDecoder) readEntry() (*ResolveUndoEntry, error) {
 
 	for s := range e.Stages {
 		var hash plumbing.Hash
-		if _, err := io.ReadFull(d.r, hash[:]); err != nil {
+		if _, err := hash.FromReader(d.r); err != nil {
 			return nil, err
 		}
 
@@ -479,7 +485,7 @@ func (d *endOfIndexEntryDecoder) Decode(e *EndOfIndexEntry) error {
 		return err
 	}
 
-	_, err = io.ReadFull(d.r, e.Hash[:])
+	_, err = e.Hash.FromReader(d.r)
 	return err
 }
 

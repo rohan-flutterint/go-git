@@ -951,6 +951,7 @@ func (r *Repository) clone(ctx context.Context, o *CloneOptions) error {
 		InsecureSkipTLS: o.InsecureSkipTLS,
 		CABundle:        o.CABundle,
 		ProxyOptions:    o.ProxyOptions,
+		Filter:          o.Filter,
 	}, o.ReferenceName)
 	if err != nil {
 		return err
@@ -1715,14 +1716,14 @@ func (r *Repository) resolveHashPrefix(hashStr string) []plumbing.Hash {
 	if hashStr == "" {
 		return nil
 	}
-	if len(hashStr) == len(plumbing.ZeroHash)*2 {
+	if len(hashStr) == plumbing.ZeroHash.Size()*2 {
 		// Only a full hash is possible.
 		hexb, err := hex.DecodeString(hashStr)
 		if err != nil {
 			return nil
 		}
 		var h plumbing.Hash
-		copy(h[:], hexb)
+		h.Write(hexb)
 		return []plumbing.Hash{h}
 	}
 
@@ -1896,7 +1897,7 @@ func expandPartialHash(st storer.EncodedObjectStorer, prefix []byte) (hashes []p
 	}
 	iter.ForEach(func(obj plumbing.EncodedObject) error {
 		h := obj.Hash()
-		if bytes.HasPrefix(h[:], prefix) {
+		if h.HasPrefix(prefix) {
 			hashes = append(hashes, h)
 		}
 		return nil

@@ -2,8 +2,8 @@ name: Git Compatibility
 on:
   push:
     branches:
-    - "master"
-    - "v6-exp"
+    - releases/v5.x
+    - main
   pull_request:
 
 permissions: {}
@@ -49,9 +49,6 @@ jobs:
  
     - name: Test
       run: make test-coverage
-
-    - name: Test SHA256
-      run: make test-sha256
 
     - name: Build go-git with CGO disabled
       run: go build ./...

@@ -1283,7 +1283,7 @@ func (s *WorktreeSuite) TestResetHardSubFolders() {
 	s.NoError(err)
 	s.False(status.IsClean())
 
-	err = w.Reset(&ResetOptions{Files: []string{"dir/testfile.txt"}, Mode: HardReset})
+	err = w.Reset(&ResetOptions{Files: []string{"./dir/testfile.txt"}, Mode: HardReset})
 	s.NoError(err)
 
 	status, err = w.Status()
@@ -2015,6 +2015,65 @@ func (s *WorktreeSuite) TestAddGlob() {
 	s.Equal(Unmodified, file.Worktree)
 
 	file = status.File("qux/bar/baz")
+	s.Equal(Added, file.Staging)
+	s.Equal(Unmodified, file.Worktree)
+}
+
+func (s *WorktreeSuite) TestAddFilenameStartingWithDot() {
+	fs := memfs.New()
+	w := &Worktree{
+		r:          s.Repository,
+		Filesystem: fs,
+	}
+
+	err := w.Checkout(&CheckoutOptions{Force: true})
+	s.NoError(err)
+
+	idx, err := w.r.Storer.Index()
+	s.NoError(err)
+	s.Len(idx.Entries, 9)
+
+	err = util.WriteFile(w.Filesystem, "qux", []byte("QUX"), 0o755)
+	s.NoError(err)
+	err = util.WriteFile(w.Filesystem, "baz", []byte("BAZ"), 0o755)
+	s.NoError(err)
+	err = util.WriteFile(w.Filesystem, "foo/bar/baz", []byte("BAZ"), 0o755)
+	s.NoError(err)
+
+	_, err = w.Add("./qux")
+	s.NoError(err)
+
+	_, err = w.Add("./baz")
+	s.NoError(err)
+
+	_, err = w.Add("foo/bar/../bar/./baz")
+	s.NoError(err)
+
+	idx, err = w.r.Storer.Index()
+	s.NoError(err)
+	s.Len(idx.Entries, 12)
+
+	e, err := idx.Entry("qux")
+	s.NoError(err)
+	s.Equal(filemode.Executable, e.Mode)
+
+	e, err = idx.Entry("baz")
+	s.NoError(err)
+	s.Equal(filemode.Executable, e.Mode)
+
+	status, err := w.Status()
+	s.NoError(err)
+	s.Len(status, 3)
+
+	file := status.File("qux")
+	s.Equal(Added, file.Staging)
+	s.Equal(Unmodified, file.Worktree)
+
+	file = status.File("baz")
+	s.Equal(Added, file.Staging)
+	s.Equal(Unmodified, file.Worktree)
+
+	file = status.File("foo/bar/baz")
 	s.Equal(Added, file.Staging)
 	s.Equal(Unmodified, file.Worktree)
 }
@@ -3212,7 +3271,7 @@ func (s *WorktreeSuite) TestRestoreStaged() {
 	s.ErrorIs(err, ErrNoRestorePaths)
 
 	// Restore Staged files in 2 groups and confirm status
-	opts.Files = []string{names[0], names[1]}
+	opts.Files = []string{names[0], "./" + names[1]}
 	err = w.Restore(&opts)
 	s.NoError(err)
 	verifyStatus(s, "Restored First", w, names, []FileStatus{
@@ -3227,7 +3286,7 @@ func (s *WorktreeSuite) TestRestoreStaged() {
 	s.NoError(err)
 	s.Equal("Foo Bar:11", string(contents))
 
-	opts.Files = []string{names[2], names[3]}
+	opts.Files = []string{"./" + names[2], names[3]}
 	err = w.Restore(&opts)
 	s.NoError(err)
 	verifyStatus(s, "Restored Second", w, names, []FileStatus{
